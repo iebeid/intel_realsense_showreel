@@ -2,13 +2,26 @@
 #include "Queue.h"
 #include "PointCloud.h"
 #include "RealSenseUtils.h"
+#include "OpenCVUtils.h"
 #include "FPS.h"
+
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <map>
+#include <future>
+#include <iterator>
 
 #include <pxcsensemanager.h>
 
 #include <opencv2/opencv.hpp>
 
-static void produce_point_cloud(Queue<PointCloud>& clouds, int width, int height, int point_cloud_res, int maximum_depth){
+#include <nanogui/nanogui.h>
+
+using namespace std;
+using namespace nanogui;
+
+static void produce_point_cloud(Queue<PointCloud>& clouds, int width, int height, int point_cloud_res, float maximum_depth){
 	std::cout << "Initialize RealSense" << std::endl;
 
 	PXCCapture::Device * device = NULL;
@@ -53,7 +66,7 @@ static void produce_point_cloud(Queue<PointCloud>& clouds, int width, int height
 		cvSetData(depthimg, dpixels, dpitch);
 		cv::Mat depthMat = cv::cvarrToMat(depthimg);
 		cv::Mat depthMatConverted;
-		depthMat.convertTo(depthMatConverted, CV_8U, -255.0f / 3000.0f, 255.0f);
+		depthMat.convertTo(depthMatConverted, CV_8U, -255.0f / maximum_depth, 255.0f);
 		cv::namedWindow("Depth");
 		cv::imshow("Depth", depthMatConverted);
 
@@ -102,17 +115,39 @@ static void consume_point_cloud(Queue<PointCloud>& clouds, int width, int height
 }
 
 void App::run(){
-	int depth_width = 320;
-	int depth_height = 240;
-	int point_cloud_resolution = 2;
-	int maximum_depth = 1500;
-	Queue<PointCloud> clouds;
-	using namespace std::placeholders;
+	cout << "--------------------------" << endl;
+	cout << "OpenCV version : " << CV_VERSION << endl;
+	cout << "--------------------------" << endl;
 
-	std::thread prod1(std::bind(produce_point_cloud, std::ref(clouds), std::ref(depth_width), std::ref(depth_height), std::ref(point_cloud_resolution), std::ref(maximum_depth)));
-	std::thread consumer1(std::bind(consume_point_cloud, std::ref(clouds), std::ref(depth_width), std::ref(depth_height)));
-	prod1.join();
-	consumer1.join();
+
+	nanogui::init();
+	Screen *screen = new Screen(Vector2i(300, 300), "");
+	bool enabled = true;
+	FormHelper *gui = new FormHelper(screen);
+	nanogui::ref<Window> window = gui->addWindow(Eigen::Vector2i(50, 100), "Control Panel");
+	gui->addButton("PointCloud Generation", [](){
+		int depth_width = 320;
+		int depth_height = 240;
+		int point_cloud_resolution = 2;
+		float maximum_depth = 2000;
+		Queue<PointCloud> clouds;
+		using namespace std::placeholders;
+		std::thread prod1(std::bind(produce_point_cloud, std::ref(clouds), std::ref(depth_width), std::ref(depth_height), std::ref(point_cloud_resolution), std::ref(maximum_depth)));
+		std::thread consumer1(std::bind(consume_point_cloud, std::ref(clouds), std::ref(depth_width), std::ref(depth_height)));
+		prod1.join();
+		consumer1.join();
+	});
+	gui->addButton("Calibrate Stereo IR Camera", [](){
+		ir_stereo_calibrate(10);
+	});
+
+	screen->setVisible(true);
+	screen->performLayout();
+	window->center();
+	nanogui::mainloop();
+	nanogui::shutdown();
+
+
 }
 
 void App::terminate(){

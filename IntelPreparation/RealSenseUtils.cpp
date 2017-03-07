@@ -4,6 +4,7 @@
 using namespace std;
 
 PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** device, PXCSession** session){
+	cout << "--------------------------" << endl;
 	//Camera initialization
 	PXCSession* current_session = PXCSession::CreateInstance();
 	PXCSession::ImplVersion ver = current_session->QueryVersion();
@@ -53,6 +54,7 @@ PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** dev
 	cout << "Camera Initialized" << endl;
 	*device = current_device;
 	*session = current_session;
+	cout << "--------------------------" << endl;
 	return sense_manager;
 }
 
