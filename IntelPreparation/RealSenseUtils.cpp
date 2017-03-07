@@ -3,43 +3,53 @@
 
 using namespace std;
 
-PXCCapture::Device* real_sense_info(PXCCaptureManager *pCaptureManager){
+PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** device, PXCSession** session){
+	//Camera initialization
+	PXCSession* current_session = PXCSession::CreateInstance();
+	PXCSession::ImplVersion ver = current_session->QueryVersion();
+	cout << "SDK Version: " << ver.major << "." << ver.minor << endl;
+	current_session->SetCoordinateSystem(PXCSession::CoordinateSystem::COORDINATE_SYSTEM_REAR_OPENCV);
+	PXCSenseManager *sense_manager = current_session->CreateSenseManager();
+	
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_COLOR, width, height, 30);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_DEPTH, width, height, 30);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_LEFT, width, height, 30);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_RIGHT, width, height, 30);
+	
+	sense_manager->Init();
+	PXCCaptureManager *pCaptureManager = sense_manager->QueryCaptureManager();
+	//PXCCapture::Device* current_device = real_sense_info(capture_manager);
+	//PXCCapture::Device* current_device;
+
 	//Info
-	PXCCapture::Device *device = pCaptureManager->QueryDevice();
+	PXCCapture::Device *current_device = pCaptureManager->QueryDevice();
 	PXCCapture::DeviceInfo device_info = {};
-	device->QueryDeviceInfo(&device_info);
+	current_device->QueryDeviceInfo(&device_info);
 	wprintf(device_info.name);
 	cout << endl;
 	cout << "Firmware: " << device_info.firmware[0] << "." << device_info.firmware[1] << "." << device_info.firmware[2] << "." << device_info.firmware[3] << endl;
-	PXCPointF32 fov = device->QueryDepthFieldOfView();
+	PXCPointF32 fov = current_device->QueryDepthFieldOfView();
 	cout << "Depth Horizontal Field Of View: " << fov.x << endl;
 	cout << "Depth Vertical Field Of View: " << fov.y << endl;
 	PXCSizeI32 csize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_COLOR);
 	cout << "Color Resolution: " << csize.width << " * " << csize.height << endl;
 	PXCSizeI32 dsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_DEPTH);
 	cout << "Depth Resolution: " << dsize.width << " * " << dsize.height << endl;
+	PXCSizeI32 leftsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_LEFT);
+	cout << "Left Resolution: " << leftsize.width << " * " << leftsize.height << endl;
+	PXCSizeI32 rightsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_RIGHT);
+	cout << "Right Resolution: " << rightsize.width << " * " << rightsize.height << endl;
 
 	//Camera calibration
 	cout << "Calibrating" << endl;
-	device->SetDepthConfidenceThreshold(6);
-	device->SetIVCAMFilterOption(5);
-	device->SetIVCAMLaserPower(16);
-	device->SetIVCAMMotionRangeTradeOff(16);
-	device->SetIVCAMAccuracy(device->IVCAM_ACCURACY_MEDIAN);
+	current_device->SetDepthConfidenceThreshold(6);
+	current_device->SetIVCAMFilterOption(5);
+	current_device->SetIVCAMLaserPower(16);
+	current_device->SetIVCAMMotionRangeTradeOff(16);
+	current_device->SetIVCAMAccuracy(current_device->IVCAM_ACCURACY_MEDIAN);
 	cout << "Depth Setting - OK - Calibrated" << endl;
 
-	return device;
-}
 
-PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** device, PXCSession** session){
-	//Camera initialization
-	PXCSession* current_session = PXCSession::CreateInstance();
-	PXCSenseManager *sense_manager = current_session->CreateSenseManager();
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_COLOR, width, height);
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_DEPTH, width, height);
-	sense_manager->Init();
-	PXCCaptureManager *capture_manager = sense_manager->QueryCaptureManager();
-	PXCCapture::Device* current_device = real_sense_info(capture_manager);
 	cout << "Camera Initialized" << endl;
 	*device = current_device;
 	*session = current_session;

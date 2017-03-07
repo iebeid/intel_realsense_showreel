@@ -4,8 +4,6 @@
 #include <pxcsensemanager.h>
 #include <iostream>
 
-PXCCapture::Device* real_sense_info(PXCCaptureManager *pCaptureManager);
-
 PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** device, PXCSession** session);
 
 PXCImage* map_color_to_depth(PXCImage* depth, PXCImage* color, PXCSession* pSession);

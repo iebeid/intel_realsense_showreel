@@ -2,6 +2,7 @@
 #include "Queue.h"
 #include "PointCloud.h"
 #include "RealSenseUtils.h"
+#include "FPS.h"
 
 #include <pxcsensemanager.h>
 
@@ -18,10 +19,13 @@ static void produce_point_cloud(Queue<PointCloud>& clouds, int width, int height
 	PXCCapture::Sample * sample = NULL;
 	PXCImage *color_image = NULL;
 	PXCImage *depth_image = NULL;
+	PXCImage *left_image = NULL;
+	PXCImage *right_image = NULL;
 
-
+	FPS fps_counter;
 
 	while (sense_manager->AcquireFrame(true) >= PXC_STATUS_NO_ERROR){
+		fps_counter.start_fps_counter();
 		sample = sense_manager->QuerySample();
 
 		color_image = sample->color;
@@ -48,14 +52,43 @@ static void produce_point_cloud(Queue<PointCloud>& clouds, int width, int height
 		IplImage* depthimg = cvCreateImageHeader(cvSize(depth_info.width, depth_info.height), 16, 1);
 		cvSetData(depthimg, dpixels, dpitch);
 		cv::Mat depthMat = cv::cvarrToMat(depthimg);
-		depthMat.convertTo(depthMat, CV_16UC1);
+		cv::Mat depthMatConverted;
+		depthMat.convertTo(depthMatConverted, CV_8U, -255.0f / 3000.0f, 255.0f);
 		cv::namedWindow("Depth");
-		cv::imshow("Depth", depthMat);
+		cv::imshow("Depth", depthMatConverted);
+
+		left_image = sample->left;
+		PXCImage::ImageInfo left_info = left_image->QueryInfo();
+		PXCImage::ImageData left_data;
+		left_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &left_data);
+		short * leftpixels = (short *)left_data.planes[0];
+		int leftpitch = left_data.pitches[0];
+		left_image->ReleaseAccess(&left_data);
+		IplImage* leftimg = cvCreateImageHeader(cvSize(left_info.width, left_info.height), 8, 1);
+		cvSetData(leftimg, leftpixels, leftpitch);
+		cv::Mat leftMat = cv::cvarrToMat(leftimg);
+		cv::namedWindow("IR Left");
+		cv::imshow("IR Left", leftMat);
+
+		right_image = sample->right;
+		PXCImage::ImageInfo right_info = right_image->QueryInfo();
+		PXCImage::ImageData right_data;
+		right_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &right_data);
+		short * rightpixels = (short *)right_data.planes[0];
+		int rightpitch = right_data.pitches[0];
+		right_image->ReleaseAccess(&right_data);
+		IplImage* rightimg = cvCreateImageHeader(cvSize(right_info.width, right_info.height), 8, 1);
+		cvSetData(rightimg, rightpixels, rightpitch);
+		cv::Mat rightMat = cv::cvarrToMat(rightimg);
+		cv::namedWindow("IR Right");
+		cv::imshow("IR Right", rightMat);
 
 		sense_manager->ReleaseFrame();
 		if (cv::waitKey(1) == 27){
 			break;
 		}
+		fps_counter.end_fps_counter();
+		fps_counter.print_fps();
 	}
 	session->Release();
 	device->Release();
