@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <opencv2/opencv.hpp>
 
+
 #undef APIENTRY
 
 using namespace std;
@@ -16,7 +17,7 @@ struct PXCColor{
 	float red;
 };
 
-struct Point
+struct Point3D
 {
 	glm::vec3 position;
 	glm::vec3 normal_vector;
@@ -47,8 +48,8 @@ class PointCloud
 public:
 
 	PointCloud(){ ; }
-	PointCloud(vector<Point> p);
-	PointCloud(cv::Mat depth_frame, cv::Mat mapped_rgb_frame, int depth_width, int depth_height, int depth_lower_threshold, int depth_upper_threshold, int point_cloud_resolution);
+	PointCloud(vector<Point3D> p);
+	PointCloud(cv::Mat depth_frame, cv::Mat mapped_rgb_frame, double * Q, int depth_width, int depth_height, int depth_lower_threshold, int depth_upper_threshold, int point_cloud_resolution);
 	~PointCloud();
 
 	void dump(const char * filename);
@@ -57,7 +58,8 @@ public:
 
 public:
 
-	std::vector<Point> points;
+	std::vector<Point3D> points;
+	int point_cloud_size;
 };
 
 struct GlobalMap{

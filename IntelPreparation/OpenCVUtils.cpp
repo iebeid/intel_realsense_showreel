@@ -93,114 +93,124 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 	PXCSession * session = NULL;
 	PXCSenseManager * sense_manager = init_real_sense(320, 240, &device, &session);
 
-	
-	PXCCapture::Sample * sample = NULL;
-	PXCImage *left_image = NULL;
-	PXCImage *right_image = NULL;
-
 	int numBoards = number_of_calibration_images;
 	int numCornersHor = 9;
 	int numCornersVer = 6;
 	int numSquares = numCornersHor * numCornersVer;
 	Size board_sz = Size(numCornersHor, numCornersVer);
 
-	vector<vector<Point3f>> left_object_points;
 	vector<vector<Point2f>> left_image_points;
 	vector<Point2f> left_corners;
-	int left_successes = 0;
-	vector<Point3f> left_obj;
-
-	vector<vector<Point3f>> right_object_points;
 	vector<vector<Point2f>> right_image_points;
 	vector<Point2f> right_corners;
-	int right_successes = 0;
-	vector<Point3f> right_obj;
+	int successes = 0;
+	vector<vector<Point3f>> object_points;
+	vector<Point3f> obj;
+
+	
+	for (int j = 0; j < numSquares; j++)
+		obj.push_back(Point3f((float)(j / numCornersHor), (float)(j%numCornersHor), 0.0f));
 
 	//Left
-	for (int j = 0; j < numSquares; j++)
-		left_obj.push_back(Point3f((float)(j / numCornersHor), (float)(j%numCornersHor), 0.0f));
-
-	Mat left_gray_image;
-	while (left_successes < numBoards)
+	//Mat left_gray_image;
+	while (successes < numBoards)
 	{
-		sample = sense_manager->QuerySample();
-		left_image = sample->left;
-		PXCImage::ImageInfo left_info = left_image->QueryInfo();
-		PXCImage::ImageData left_data;
-		left_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &left_data);
-		short * leftpixels = (short *)left_data.planes[0];
-		int leftpitch = left_data.pitches[0];
-		left_image->ReleaseAccess(&left_data);
-		IplImage* leftimg = cvCreateImageHeader(cvSize(left_info.width, left_info.height), 8, 1);
-		cvSetData(leftimg, leftpixels, leftpitch);
-		cv::Mat leftMat = cv::cvarrToMat(leftimg);
-		sense_manager->ReleaseFrame();
-		//image = image(roi);
-		cvtColor(leftMat, left_gray_image, CV_BGR2GRAY);
-		bool found = findChessboardCorners(leftMat, board_sz, left_corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
-		if (found)
-		{
-			cornerSubPix(left_gray_image, left_corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-			drawChessboardCorners(left_gray_image, board_sz, left_corners, found);
-		}
-		imshow("Gray Image", left_gray_image);
-		int key = waitKey(1);
-		if (key == 13 && found)
-		{
-			left_image_points.push_back(left_corners);
-			left_object_points.push_back(left_obj);
-			cout << "Calibration Image Stored" << endl;
-			left_successes++;
-			if (left_successes >= numBoards)
-				break;
+		if (sense_manager->AcquireFrame(true) >= PXC_STATUS_NO_ERROR){
+			PXCCapture::Sample * sample = sense_manager->QuerySample();
+			PXCImage * left_image = sample->left;
+			PXCImage::ImageInfo left_info = left_image->QueryInfo();
+			PXCImage::ImageData left_data;
+			left_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &left_data);
+			short * leftpixels = (short *)left_data.planes[0];
+			int leftpitch = left_data.pitches[0];
+			left_image->ReleaseAccess(&left_data);
+			IplImage* leftimg = cvCreateImageHeader(cvSize(left_info.width, left_info.height), 8, 1);
+			cvSetData(leftimg, leftpixels, leftpitch);
+			cv::Mat leftMat = cv::cvarrToMat(leftimg);
+			PXCImage * right_image = sample->right;
+			PXCImage::ImageInfo right_info = right_image->QueryInfo();
+			PXCImage::ImageData right_data;
+			right_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &right_data);
+			short * rightpixels = (short *)right_data.planes[0];
+			int rightpitch = right_data.pitches[0];
+			right_image->ReleaseAccess(&right_data);
+			IplImage* rightimg = cvCreateImageHeader(cvSize(right_info.width, right_info.height), 8, 1);
+			cvSetData(rightimg, rightpixels, rightpitch);
+			cv::Mat rightMat = cv::cvarrToMat(rightimg);
+			sense_manager->ReleaseFrame();
+			//image = image(roi);
+			//cvtColor(leftMat, left_gray_image, CV_Y82BGR);
+			bool found_left = findChessboardCorners(leftMat, board_sz, left_corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
+			if (found_left)
+			{
+				cornerSubPix(leftMat, left_corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
+				drawChessboardCorners(leftMat, board_sz, left_corners, found_left);
+			}
+			bool found_right = findChessboardCorners(rightMat, board_sz, right_corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
+			if (found_right)
+			{
+				cornerSubPix(rightMat, right_corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
+				drawChessboardCorners(rightMat, board_sz, right_corners, found_right);
+			}
+			imshow("Left Image", leftMat);
+			imshow("Right Image", rightMat);
+			int key = waitKey(1);
+			if (key == 13 && found_left && found_right)
+			{
+				left_image_points.push_back(left_corners);
+				right_image_points.push_back(right_corners);
+				object_points.push_back(obj);
+				cout << "Calibration Image Stored" << endl;
+				successes++;
+				if (successes >= numBoards)
+					break;
+			}
 		}
 	}
 
 
-	//Right
-	for (int j = 0; j < numSquares; j++)
-		right_obj.push_back(Point3f((float)(j / numCornersHor), (float)(j%numCornersHor), 0.0f));
+	////Right
+	//for (int j = 0; j < numSquares; j++)
+	//	right_obj.push_back(Point3f((float)(j / numCornersHor), (float)(j%numCornersHor), 0.0f));
 
-	Mat right_gray_image;
-	while (right_successes < numBoards)
-	{
-		sample = sense_manager->QuerySample();
-		right_image = sample->right;
-		PXCImage::ImageInfo right_info = right_image->QueryInfo();
-		PXCImage::ImageData right_data;
-		right_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &right_data);
-		short * rightpixels = (short *)right_data.planes[0];
-		int rightpitch = right_data.pitches[0];
-		right_image->ReleaseAccess(&right_data);
-		IplImage* rightimg = cvCreateImageHeader(cvSize(right_info.width, right_info.height), 8, 1);
-		cvSetData(rightimg, rightpixels, rightpitch);
-		cv::Mat rightMat = cv::cvarrToMat(rightimg);
-		sense_manager->ReleaseFrame();
-		//image = image(roi);
-		cvtColor(rightMat, right_gray_image, CV_BGR2GRAY);
-		bool found = findChessboardCorners(rightMat, board_sz, right_corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
-		if (found)
-		{
-			cornerSubPix(right_gray_image, right_corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
-			drawChessboardCorners(right_gray_image, board_sz, right_corners, found);
-		}
-		imshow("Gray Image", right_gray_image);
-		int key = waitKey(1);
-		if (key == 13 && found)
-		{
-			right_image_points.push_back(right_corners);
-			right_object_points.push_back(right_obj);
-			cout << "Calibration Image Stored" << endl;
-			right_successes++;
-			if (right_successes >= numBoards)
-				break;
-		}
-	}
+	////Mat right_gray_image;
+	//while (right_successes < numBoards)
+	//{
+	//	if (sense_manager->AcquireFrame(true) >= PXC_STATUS_NO_ERROR){
+	//		PXCCapture::Sample * sample = sense_manager->QuerySample();
+	//		PXCImage * right_image = sample->right;
+	//		PXCImage::ImageInfo right_info = right_image->QueryInfo();
+	//		PXCImage::ImageData right_data;
+	//		right_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_Y8, &right_data);
+	//		short * rightpixels = (short *)right_data.planes[0];
+	//		int rightpitch = right_data.pitches[0];
+	//		right_image->ReleaseAccess(&right_data);
+	//		IplImage* rightimg = cvCreateImageHeader(cvSize(right_info.width, right_info.height), 8, 1);
+	//		cvSetData(rightimg, rightpixels, rightpitch);
+	//		cv::Mat rightMat = cv::cvarrToMat(rightimg);
+	//		sense_manager->ReleaseFrame();
+	//		//image = image(roi);
+	//		//cvtColor(rightMat, right_gray_image, CV_BGR2GRAY);
+	//		bool found = findChessboardCorners(rightMat, board_sz, right_corners, CV_CALIB_CB_ADAPTIVE_THRESH | CV_CALIB_CB_FILTER_QUADS);
+	//		if (found)
+	//		{
+	//			cornerSubPix(rightMat, right_corners, Size(11, 11), Size(-1, -1), TermCriteria(CV_TERMCRIT_EPS | CV_TERMCRIT_ITER, 30, 0.1));
+	//			drawChessboardCorners(rightMat, board_sz, right_corners, found);
+	//		}
+	//		imshow("Right Image", rightMat);
+	//		int key = waitKey(1);
+	//		if (key == 13 && found)
+	//		{
+	//			right_image_points.push_back(right_corners);
+	//			right_object_points.push_back(right_obj);
+	//			cout << "Calibration Image Stored" << endl;
+	//			right_successes++;
+	//			if (right_successes >= numBoards)
+	//				break;
+	//		}
+	//	}
+	//}
 
-	session->Release();
-	device->Release();
-	sense_manager->Release();
-	sense_manager->Close();
 	destroyAllWindows();
 
 	cout << "Performing left camera calibration" << endl;
@@ -208,7 +218,7 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 	Mat leftK;
 	Mat leftD;
 	int cal_flags_left = 0 + CALIB_FIX_K3;
-	cv::calibrateCamera(left_object_points, left_image_points, left_image_size, leftK, leftD, noArray(), noArray(), cal_flags_left, TermCriteria(3, 20, 1e-6));
+	cv::calibrateCamera(object_points, left_image_points, left_image_size, leftK, leftD, noArray(), noArray(), cal_flags_left, TermCriteria(3, 20, 1e-6));
 	cout << leftK << endl;
 	cout << leftD << endl;
 
@@ -217,16 +227,14 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 	Mat rightK;
 	Mat rightD;
 	int cal_flags_right = 0 + CALIB_FIX_K3;
-	cv::calibrateCamera(right_object_points, right_image_points, right_image_size, rightK, rightD, noArray(), noArray(), cal_flags_right, TermCriteria(3, 20, 1e-6));
+	cv::calibrateCamera(object_points, right_image_points, right_image_size, rightK, rightD, noArray(), noArray(), cal_flags_right, TermCriteria(3, 20, 1e-6));
 	cout << rightK << endl;
 	cout << rightD << endl;
 
 	cout << "Performing stereo calibration" << endl;
-	vector<vector<Point3f>> object_points;
-	object_points.push_back(right_obj);
-	object_points.push_back(left_obj);
 	Mat E, F, R, T;
-	int calib_flags = CALIB_FIX_INTRINSIC + 0 + CALIB_FIX_K3;
+	//int calib_flags = CALIB_FIX_INTRINSIC + 0 + CALIB_FIX_K3;
+	int calib_flags = cv::CALIB_RATIONAL_MODEL + cv::CALIB_FIX_K3 + cv::CALIB_FIX_K4 + cv::CALIB_FIX_K5 + cv::CALIB_FIX_K6;
 	cv::stereoCalibrate(object_points, left_image_points, right_image_points, leftK, leftD, rightK, rightD, left_image_size, R, T, E, F, calib_flags, TermCriteria(3, 20, 1e-6));
 	
 	cout << R << endl;
@@ -234,26 +242,47 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 	cout << E << endl;
 	cout << F << endl;
 
+	cv::Mat R1, R2, P1, P2, Q;
+
+	cv::stereoRectify(leftK, leftD, rightK, rightD, left_image_size, R, T, R1, R2, P1, P2, Q, 1024, 0);
+
+	cout << R1 << endl;
+	cout << R2 << endl;
+	cout << P1 << endl;
+	cout << P2 << endl;
+	cout << Q << endl;
+
 	ofstream stereo_file("ir_stereo_calibration.txt");
 	if (stereo_file.is_open()){
-		stereo_file << R.at<double>(0, 0) << endl;
-		stereo_file << R.at<double>(0, 1) << endl;
-		stereo_file << R.at<double>(0, 2) << endl;
-		stereo_file << R.at<double>(1, 0) << endl;
-		stereo_file << R.at<double>(1, 1) << endl;
-		stereo_file << R.at<double>(1, 2) << endl;
-		stereo_file << R.at<double>(2, 0) << endl;
-		stereo_file << R.at<double>(2, 1) << endl;
-		stereo_file << R.at<double>(2, 2) << endl;
-		stereo_file << T.at<double>(0, 0) << endl;
-		stereo_file << T.at<double>(0, 1) << endl;
-		stereo_file << T.at<double>(0, 2) << endl;
-		stereo_file << T.at<double>(0, 3) << endl;
+		stereo_file << Q.at<double>(0, 0) << endl;
+		stereo_file << Q.at<double>(0, 1) << endl;
+		stereo_file << Q.at<double>(0, 2) << endl;
+		stereo_file << Q.at<double>(0, 3) << endl;
+		stereo_file << Q.at<double>(1, 0) << endl;
+		stereo_file << Q.at<double>(1, 1) << endl;
+		stereo_file << Q.at<double>(1, 2) << endl;
+		stereo_file << Q.at<double>(1, 3) << endl;
+		stereo_file << Q.at<double>(2, 0) << endl;
+		stereo_file << Q.at<double>(2, 1) << endl;
+		stereo_file << Q.at<double>(2, 2) << endl;
+		stereo_file << Q.at<double>(2, 3) << endl;
+		stereo_file << Q.at<double>(3, 0) << endl;
+		stereo_file << Q.at<double>(3, 1) << endl;
+		stereo_file << Q.at<double>(3, 2) << endl;
+		stereo_file << Q.at<double>(3, 3) << endl;
 		stereo_file.close();
 	}
 	else{
 		cout << "Unable to open file" << endl;
 	}
+
+
+
+	//session->Release();
+	//device->Release();
+	//sense_manager->Release();
+	//sense_manager->Close();
+	
 
 
 }
