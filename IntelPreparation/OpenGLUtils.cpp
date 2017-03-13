@@ -16,12 +16,7 @@ float camera_angle_z = 0.0f;
 Camera camera;
 
 double cursor_xpos, cursor_ypos;
-float mouse_position_x = 0.0f;
-float mouse_position_y = 0.0f;
-float dx = 0.0f;
-float dy = 0.0f;
-float dPhi = 0.0f;
-float dTheta = 0.0f;
+float mouse_position_x, mouse_position_y, dx, dy, dPhi, dTheta;
 
 
 
@@ -111,10 +106,10 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mods)
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
 	if (yoffset < 0){
-		zoom_distance = zoom_distance - 0.01f;
+		zoom_distance = zoom_distance - 0.15f;
 	}
 	if (yoffset > 0){
-		zoom_distance = zoom_distance + 0.01f;
+		zoom_distance = zoom_distance + 0.15f;
 	}
 }
 //
@@ -168,6 +163,13 @@ GLFWwindow* initWindow(const int resX, const int resY, const char * title)
 	glDisable(GL_CULL_FACE);
 	glCullFace(GL_BACK);
 
+	mouse_position_x = 0.0f;
+	mouse_position_y = 0.0f;
+	dx = 0.0f;
+	dy = 0.0f;
+	dPhi = 0.0f;
+	dTheta = 0.0f;
+
 	float pos[3] = { camera_position_x, camera_position_y, camera_position_z };
 	camera.set_position(pos);
 	float * rot = MathUtils::get_rotation_matrix(camera_angle_x, camera_angle_y, camera_angle_z);
@@ -197,8 +199,8 @@ void show(GLFWwindow* window, PointCloud s){
 		glfwGetCursorPos(window, &cursor_xpos, &cursor_ypos);
 		//Mouse right click pan camera
 		if (rbutton_down == true && rbutton_up == false) {
-			dx = ((float)(mouse_position_x - cursor_xpos))*0.001f;
-			dy = ((float)(mouse_position_y - cursor_ypos))*0.001f;
+			dx = ((float)(mouse_position_x - cursor_xpos))*0.0001f;
+			dy = ((float)(mouse_position_y - cursor_ypos))*0.0001f;
 			float * current_camera_position = camera.get_position();
 			float camera_new_position_x = current_camera_position[0] - dx;
 			float camera_new_position_y = current_camera_position[1] + dy;

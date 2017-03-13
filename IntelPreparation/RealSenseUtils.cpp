@@ -41,14 +41,14 @@ PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** dev
 	PXCSizeI32 rightsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_RIGHT);
 	cout << "Right Resolution: " << rightsize.width << " * " << rightsize.height << endl;
 
-	//Camera calibration
-	cout << "Calibrating" << endl;
-	current_device->SetDepthConfidenceThreshold(6);
-	current_device->SetIVCAMFilterOption(5);
-	current_device->SetIVCAMLaserPower(16);
-	current_device->SetIVCAMMotionRangeTradeOff(16);
-	current_device->SetIVCAMAccuracy(current_device->IVCAM_ACCURACY_MEDIAN);
-	cout << "Depth Setting - OK - Calibrated" << endl;
+	////Camera calibration
+	//cout << "Calibrating" << endl;
+	//current_device->SetDepthConfidenceThreshold(6);
+	//current_device->SetIVCAMFilterOption(5);
+	//current_device->SetIVCAMLaserPower(16);
+	//current_device->SetIVCAMMotionRangeTradeOff(16);
+	//current_device->SetIVCAMAccuracy(current_device->IVCAM_ACCURACY_MEDIAN);
+	//cout << "Depth Setting - OK - Calibrated" << endl;
 
 
 	cout << "Camera Initialized" << endl;

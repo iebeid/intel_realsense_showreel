@@ -92,4 +92,9 @@
       <Filter>Resource Files</Filter>
     </Text>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="kernel.cl">
+      <Filter>Resource Files</Filter>
+    </None>
+  </ItemGroup>
 </Project>

@@ -53,6 +53,7 @@ public:
 	~PointCloud();
 
 	void dump(const char * filename);
+	void reprojectKinectDepth3D(cv::Mat& src, cv::Mat& dest, const double focal_length, cv::Point2d imageCenter);
 	Render get_rendering_structures();
 	void terminate(Render rs);
 

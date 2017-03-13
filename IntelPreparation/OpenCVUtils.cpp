@@ -217,25 +217,33 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 	Size left_image_size(320, 240);
 	Mat leftK;
 	Mat leftD;
-	int cal_flags_left = 0 + CALIB_FIX_K3;
+	int cal_flags_left = cv::CALIB_RATIONAL_MODEL + cv::CALIB_FIX_K3 + cv::CALIB_FIX_K4 + cv::CALIB_FIX_K5 + cv::CALIB_FIX_K6;
 	cv::calibrateCamera(object_points, left_image_points, left_image_size, leftK, leftD, noArray(), noArray(), cal_flags_left, TermCriteria(3, 20, 1e-6));
-	cout << leftK << endl;
+	Mat optimal_left_K = cv::getOptimalNewCameraMatrix(leftK, leftD, left_image_size, 1, left_image_size);
+	cout << optimal_left_K << endl;
 	cout << leftD << endl;
+	vector<vector<Point2f>> undistorted_left_image_points;
+	cv::Mat left_points_input(1, (int)left_image_points.size(),CV_32FC2);
+	//cv::Mat undistorted_left_points_input();
+	cv::undistortPoints(left_image_points, undistorted_left_image_points, optimal_left_K, leftD, noArray(), noArray());
 
 	cout << "Performing right camera calibration" << endl;
 	Size right_image_size(320, 240);
 	Mat rightK;
 	Mat rightD;
-	int cal_flags_right = 0 + CALIB_FIX_K3;
+	int cal_flags_right = cv::CALIB_RATIONAL_MODEL + cv::CALIB_FIX_K3 + cv::CALIB_FIX_K4 + cv::CALIB_FIX_K5 + cv::CALIB_FIX_K6;
 	cv::calibrateCamera(object_points, right_image_points, right_image_size, rightK, rightD, noArray(), noArray(), cal_flags_right, TermCriteria(3, 20, 1e-6));
-	cout << rightK << endl;
+	Mat optimal_right_K = cv::getOptimalNewCameraMatrix(rightK, rightD,right_image_size,1,right_image_size);
+	cout << optimal_right_K << endl;
 	cout << rightD << endl;
+	vector<vector<Point2f>> undistorted_right_image_points;
+	//cv::undistortPoints(right_image_points, undistorted_right_image_points, optimal_right_K, rightD, noArray(), noArray());
 
 	cout << "Performing stereo calibration" << endl;
 	Mat E, F, R, T;
 	//int calib_flags = CALIB_FIX_INTRINSIC + 0 + CALIB_FIX_K3;
 	int calib_flags = cv::CALIB_RATIONAL_MODEL + cv::CALIB_FIX_K3 + cv::CALIB_FIX_K4 + cv::CALIB_FIX_K5 + cv::CALIB_FIX_K6;
-	cv::stereoCalibrate(object_points, left_image_points, right_image_points, leftK, leftD, rightK, rightD, left_image_size, R, T, E, F, calib_flags, TermCriteria(3, 20, 1e-6));
+	cv::stereoCalibrate(object_points, undistorted_left_image_points, undistorted_right_image_points, optimal_left_K, leftD, optimal_right_K, rightD, left_image_size, R, T, E, F, calib_flags, TermCriteria(3, 20, 1e-6));
 	
 	cout << R << endl;
 	cout << T << endl;
@@ -244,7 +252,7 @@ void ir_stereo_calibrate(int number_of_calibration_images){
 
 	cv::Mat R1, R2, P1, P2, Q;
 
-	cv::stereoRectify(leftK, leftD, rightK, rightD, left_image_size, R, T, R1, R2, P1, P2, Q, 1024, 0);
+	cv::stereoRectify(optimal_left_K, leftD, optimal_right_K, rightD, left_image_size, R, T, R1, R2, P1, P2, Q, CV_CALIB_ZERO_DISPARITY, 0);
 
 	cout << R1 << endl;
 	cout << R2 << endl;
