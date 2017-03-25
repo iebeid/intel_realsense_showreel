@@ -156,11 +156,11 @@ void show_map(GLFWwindow* window, int n, GLfloat *vertices, GLfloat *colors){
 
 		glMatrixMode(GL_PROJECTION_MATRIX);
 		glLoadIdentity();
-		gluPerspective(60, (GLdouble)windowWidth / (GLdouble)windowHeight, 0.1, 100.0);
+		gluPerspective(55.4157, (GLdouble)windowWidth / (GLdouble)windowHeight, 0.1, 100.0);
 
 		glMatrixMode(GL_MODELVIEW_MATRIX);
 
-		glTranslatef(0.0f, 0.0f, 0.1f);
+		glTranslatef(0.0f, 0.0f, 0.0f);
 		glRotatef(0.0f, 1.0f, 0.0f, 0.0f);
 		glRotatef(180.0f, 0.0f, 1.0f, 0.0f);
 		glRotatef(0.0f, 0.0f, 0.0f, 1.0f);

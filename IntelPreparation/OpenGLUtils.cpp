@@ -248,13 +248,13 @@ void show(GLFWwindow* window, PointCloud s){
 		//
 		//for (int i = 0; i < s.models.size(); i++){
 		Render rs = s.get_rendering_structures();
-		GLsizei number_of_points = (GLsizei)s.point_cloud_size;
+		//GLsizei number_of_points = (GLsizei)s.point_cloud_size;
 		//cout << number_of_points << endl;
 			glEnableClientState(GL_VERTEX_ARRAY);
 			glEnableClientState(GL_COLOR_ARRAY);
 			glVertexPointer(3, GL_FLOAT, 0, rs.vertices);
 			glColorPointer(3, GL_FLOAT, 0, rs.colors);
-			glDrawArrays(GL_POINTS, 0, number_of_points);
+			glDrawArrays(GL_POINTS, 0, (GLsizei)s.points.size());
 			glDisableClientState(GL_COLOR_ARRAY);
 			glDisableClientState(GL_VERTEX_ARRAY);
 		//}

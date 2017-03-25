@@ -9,29 +9,30 @@ PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** dev
 	PXCSession* current_session = PXCSession::CreateInstance();
 	PXCSession::ImplVersion ver = current_session->QueryVersion();
 	cout << "SDK Version: " << ver.major << "." << ver.minor << endl;
-	current_session->SetCoordinateSystem(PXCSession::CoordinateSystem::COORDINATE_SYSTEM_REAR_OPENCV);
+	//current_session->SetCoordinateSystem(PXCSession::CoordinateSystem::COORDINATE_SYSTEM_REAR_OPENCV);
 	PXCSenseManager *sense_manager = current_session->CreateSenseManager();
 	
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_COLOR, width, height, 30);
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_DEPTH, width, height, 30);
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_LEFT, width, height, 30);
-	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_RIGHT, width, height, 30);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_COLOR, width, height, 60);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_DEPTH, width, height, 60);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_LEFT, width, height, 60);
+	sense_manager->EnableStream(PXCCapture::STREAM_TYPE_RIGHT, width, height, 60);
 	
 	sense_manager->Init();
 	PXCCaptureManager *pCaptureManager = sense_manager->QueryCaptureManager();
 	//PXCCapture::Device* current_device = real_sense_info(capture_manager);
 	//PXCCapture::Device* current_device;
-
+	
 	//Info
 	PXCCapture::Device *current_device = pCaptureManager->QueryDevice();
 	PXCCapture::DeviceInfo device_info = {};
 	current_device->QueryDeviceInfo(&device_info);
 	wprintf(device_info.name);
+	
 	cout << endl;
+	cout << "-----------------------------------------------" << endl;
+	cout << "-----------------------------------------------" << endl;
+	cout << "Intel RealSense Depth Stream Information" << endl;
 	cout << "Firmware: " << device_info.firmware[0] << "." << device_info.firmware[1] << "." << device_info.firmware[2] << "." << device_info.firmware[3] << endl;
-	PXCPointF32 fov = current_device->QueryDepthFieldOfView();
-	cout << "Depth Horizontal Field Of View: " << fov.x << endl;
-	cout << "Depth Vertical Field Of View: " << fov.y << endl;
 	PXCSizeI32 csize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_COLOR);
 	cout << "Color Resolution: " << csize.width << " * " << csize.height << endl;
 	PXCSizeI32 dsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_DEPTH);
@@ -40,6 +41,29 @@ PXCSenseManager* init_real_sense(int width, int height, PXCCapture::Device** dev
 	cout << "Left Resolution: " << leftsize.width << " * " << leftsize.height << endl;
 	PXCSizeI32 rightsize = pCaptureManager->QueryImageSize(PXCCapture::STREAM_TYPE_RIGHT);
 	cout << "Right Resolution: " << rightsize.width << " * " << rightsize.height << endl;
+	short depth_confidence_threshold = current_device->QueryDepthConfidenceThreshold();
+	float focal_length_mm = current_device->QueryDepthFocalLengthMM();
+	PXCPointF32 focal_length = current_device->QueryDepthFocalLength();
+	short depth_low_confidence_value = current_device->QueryDepthLowConfidenceValue();
+	PXCPointF32 principal_point = current_device->QueryDepthPrincipalPoint();
+	PXCRangeF32 depth_range = current_device->QueryDepthSensorRange();
+	bool rectification_enabled = current_device->QueryDSDepthRectificationEnabled();
+	PXCPointF32 fov = current_device->QueryDepthFieldOfView();
+	cout << "Depth Confidence Threshold: " << depth_confidence_threshold << endl;
+	cout << "Depth Focal Length in MM: " << focal_length_mm << endl;
+	cout << "Depth Focal Length X: " << focal_length.x << endl;
+	cout << "Depth Focal Length Y: " << focal_length.y << endl;
+	cout << "Depth Low Confidence Threshold: " << depth_low_confidence_value << endl;
+	cout << "Depth Principal Point X: " << principal_point.x << endl;
+	cout << "Depth Principal Point Y: " << principal_point.y << endl;
+	cout << "Depth Minimum Depth Range: " << depth_range.min << endl;
+	cout << "Depth Maximum Depth Range: " << depth_range.max << endl;
+	cout << "Is Rectification Enabled: " << rectification_enabled << endl;
+	cout << "Depth Horizontal Field Of View: " << fov.x << endl;
+	cout << "Depth Vertical Field Of View: " << fov.y << endl;
+	cout << "-----------------------------------------------" << endl;
+	cout << "-----------------------------------------------" << endl;
+	cout << endl;
 
 	////Camera calibration
 	//cout << "Calibrating" << endl;

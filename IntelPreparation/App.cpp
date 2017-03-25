@@ -36,6 +36,127 @@ using namespace std;
 using namespace nana;
 //using namespace nanogui;
 
+void shift_image(){
+	cout << "--------------------------" << endl;
+	cout << "OpenCV version : " << CV_VERSION << endl;
+	cout << "--------------------------" << endl;
+	if (!ocl::haveOpenCL())
+	{
+		cout << "OpenCL is not avaiable..." << endl;
+	}
+	ocl::Context context;
+	if (!context.create(cv::ocl::Device::TYPE_GPU))
+	{
+		cout << "Failed creating the context..." << endl;
+	}
+	cout << context.ndevices() << " GPU devices are detected." << endl;
+	for (int i = 0; i < context.ndevices(); i++)
+	{
+		ocl::Device device = context.device(i);
+		cout << "name                 : " << device.name() << endl;
+		cout << "available            : " << device.available() << endl;
+		cout << "imageSupport         : " << device.imageSupport() << endl;
+		cout << "OpenCL_C_Version     : " << device.OpenCL_C_Version() << endl;
+		cout << endl;
+	}
+	ocl::Device(context.device(0));
+	PXCCapture::Device * device = NULL;
+	PXCSession * session = NULL;
+	PXCSenseManager * sense_manager = init_real_sense(320, 240, &device, &session);
+	PXCCapture::Sample * sample = NULL;
+	PXCImage *depth_image = NULL;
+
+	UMat umat_src;
+	UMat umat_dst;
+	ifstream ifs("kernel.cl");
+	//if (ifs.fail()) return -1;
+	string kernelSource((istreambuf_iterator<char>(ifs)), istreambuf_iterator<char>());
+	ocl::ProgramSource programSource(kernelSource);
+	String errmsg;
+	String buildopt = cv::format("-D dstT=uchar"); // "-D dstT=float"
+	ocl::Program program = context.getProg(programSource, buildopt, errmsg);
+	
+	FPS counter;
+
+	while (sense_manager->AcquireFrame(true) >= PXC_STATUS_NO_ERROR){
+		counter.start_fps_counter();
+		
+
+		sample = sense_manager->QuerySample();
+
+
+		depth_image = sample->depth;
+		PXCImage::ImageInfo depth_info = depth_image->QueryInfo();
+		PXCImage::ImageData depth_data;
+		depth_image->AcquireAccess(PXCImage::ACCESS_READ, PXCImage::PIXEL_FORMAT_DEPTH, &depth_data);
+		short * dpixels = (short *)depth_data.planes[0];
+		//cout << dpixels[122]*0.001 << " , " << dpixels[222]*0.001 << " , " << dpixels[512]*0.001 << endl;
+		int dpitch = depth_data.pitches[0];
+		depth_image->ReleaseAccess(&depth_data);
+
+		cv::Mat depthBufferMat(depth_info.height, depth_info.width, CV_16UC1, dpixels, dpitch);
+		cv::Mat depthMat(depth_info.height, depth_info.width, CV_8UC1);
+		depthBufferMat.convertTo(depthMat, CV_8UC1, -255.0f / 2500, 255.0f);
+
+		namedWindow("Input", WINDOW_NORMAL);
+		resizeWindow("Input", 320, 320);
+		imshow("Input", depthMat);
+		umat_src = depthMat.getUMat(ACCESS_READ, USAGE_ALLOCATE_DEVICE_MEMORY);
+		umat_dst = UMat(depthMat.size(), CV_8UC1, ACCESS_WRITE, USAGE_ALLOCATE_DEVICE_MEMORY);
+		ocl::Image2D image(umat_src);
+		float shift_x = -50.0f;
+		float shift_y = -50.0f;
+
+		//int maskSize;
+		//float * mask = createBlurMask(10.0f, &maskSize);
+
+
+		ocl::Kernel kernel("shift", program);
+		kernel.args(image, shift_x, shift_y, ocl::KernelArg::ReadWrite(umat_dst), 0, 0, depthMat.rows, depthMat.cols);
+		size_t globalThreads[3] = { depthMat.cols, depthMat.rows, 1 };
+		size_t localThreads[3] = { 256, 1, 1 };
+		//kernel.compileWorkGroupSize();
+		//kernel.runTask();
+
+
+		bool success = kernel.run(3, globalThreads, localThreads, true);
+		if (!success){
+			cout << "Failed running the kernel..." << endl;
+			program.~Program();
+			image.~Image2D();
+			kernel.empty();
+			kernel.~Kernel();
+			getchar();
+		}
+		Mat mat_dst = umat_dst.getMat(ACCESS_READ);
+		namedWindow("Output", WINDOW_NORMAL);
+		resizeWindow("Output", 320, 320);
+		imshow("Output", mat_dst);
+		sense_manager->ReleaseFrame();
+		int key = waitKey(1);
+		if (key == 32){
+			cout << "Local memory size: " << kernel.localMemSize() << endl;
+			cout << "Prefered work group size multiple: " << kernel.preferedWorkGroupSizeMultiple() << endl;
+			cout << "Work group size: " << kernel.workGroupSize() << endl;
+		}
+		if (key == 27)
+		{
+			program.~Program();
+			image.~Image2D();
+			kernel.empty();
+			kernel.~Kernel();
+		}
+		counter.end_fps_counter();
+		counter.print_fps();
+	}
+
+	session->Release();
+	device->Release();
+
+	sense_manager->Release();
+	sense_manager->Close();
+}
+
 void filter_depth(){
 	cout << "--------------------------" << endl;
 	cout << "OpenCV version : " << CV_VERSION << endl;
@@ -166,7 +287,7 @@ void filter_depth(){
 	sense_manager->Close();
 }
 
-static void produce_point_cloud(Queue<PointCloud>& clouds, double * Q,int width, int height, int point_cloud_res, float maximum_depth){
+static void produce_point_cloud(Queue<PointCloud>& clouds, double * Q,int width, int height, int point_cloud_res, int maximum_depth){
 
 
 	cout << "--------------------------" << endl;
@@ -179,6 +300,8 @@ static void produce_point_cloud(Queue<PointCloud>& clouds, double * Q,int width,
 	PXCCapture::Device * device = NULL;
 	PXCSession * session = NULL;
 	PXCSenseManager * sense_manager = init_real_sense(width, height, &device, &session);
+
+	PXCProjection * projection = device->CreateProjection();
 
 	//PXCImage *mapped_color_to_depth = NULL;
 	PXCCapture::Sample * sample = NULL;
@@ -258,7 +381,9 @@ static void produce_point_cloud(Queue<PointCloud>& clouds, double * Q,int width,
 		cv::imshow("Mapped Color to Depth", mappedMat);
 
 
-		PointCloud current_point_cloud(depthBufferMat, mappedMat, Q, width, height, 0, (int)maximum_depth, point_cloud_res);
+		//PointCloud current_point_cloud(depthBufferMat, mappedMat, Q, width, height, 0, (int)maximum_depth, point_cloud_res);
+		PointCloud current_point_cloud(Q, color_image, depth_image, mapped_color_to_depth_image, sense_manager, projection, device, maximum_depth, point_cloud_res);
+		
 
 		
 
@@ -336,7 +461,7 @@ void App::run(){
 			int depth_width = 320;
 			int depth_height = 240;
 			int point_cloud_resolution = 1;
-			float maximum_depth = 2500;
+			int maximum_depth = 1000;
 			Queue<PointCloud> clouds;
 			using namespace std::placeholders;
 			std::thread prod1(std::bind(produce_point_cloud, std::ref(clouds), std::ref(Q), std::ref(depth_width), std::ref(depth_height), std::ref(point_cloud_resolution), std::ref(maximum_depth)));
@@ -346,11 +471,12 @@ void App::run(){
 		});
 		button btn_calibrate{ fm, "Calibrate" };
 		btn_calibrate.events().click([&fm]{
-			ir_stereo_calibrate(5);
+			ir_stereo_calibrate(30);
 		});
 		button btn_filter_depth{ fm, "Filtered Depth" };
 		btn_filter_depth.events().click([&fm]{
-			filter_depth();
+			shift_image();
+			//filter_depth();
 		});
 		fm.div("vert <><<><weight=80% text><>><><weight=12<><button><>><>");
 		fm["text"] << lab;

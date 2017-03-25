@@ -5,6 +5,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <opencv2/opencv.hpp>
+#include <pxccapturemanager.h>
 
 
 #undef APIENTRY
@@ -49,7 +50,8 @@ public:
 
 	PointCloud(){ ; }
 	PointCloud(vector<Point3D> p);
-	PointCloud(cv::Mat depth_frame, cv::Mat mapped_rgb_frame, double * Q, int depth_width, int depth_height, int depth_lower_threshold, int depth_upper_threshold, int point_cloud_resolution);
+	//PointCloud(cv::Mat depth_frame, cv::Mat mapped_rgb_frame, double * Q, int depth_width, int depth_height, int depth_lower_threshold, int depth_upper_threshold, int point_cloud_resolution);
+	PointCloud::PointCloud(double * Q, PXCImage * rgb_frame, PXCImage * depth_frame, PXCImage * mapped_rgb_frame, PXCSenseManager * sense_manager, PXCProjection * projection, PXCCapture::Device * device, int depth_threshold, int point_cloud_resolution);
 	~PointCloud();
 
 	void dump(const char * filename);
